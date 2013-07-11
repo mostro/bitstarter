@@ -24,10 +24,10 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
-var restler = requiere('restler');
-var HTMLFILE_DEFAULT = "index.html";
+var restler = require('restler');
+var HTMLFILE_DEFAULT = "index2.html";
 var CHECKSFILE_DEFAULT = "checks.json";
-var URLFILE_DEFAULT = '';
+var URLFILE_DEFAULT = 'http://vast-dusk-9411.herokuapp.com';
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -38,16 +38,48 @@ var assertFileExists = function(infile) {
     return instr;
 };
 
+var assertUrlExists = function(url) {
+    return url.toString();
+};
+
 var cheerioHtmlFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
+};
+
+var cheerio2HtmlFile = function(htmlfile) {
+    return cheerio.load(htmlfile);
 };
 
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
 
+var loadURL = function(urlfile){
+   
+rest.get(urlfile).on('complete', function(result) {
+  if (result instanceof Error) {
+    sys.puts('Error: ' + result.message);
+    this.retry(5000); // try again after 5 sec
+  } else {
+    sys.puts(result);
+  }
+})
+
+};
+
 var checkHtmlFile = function(htmlfile, checksfile) {
     $ = cheerioHtmlFile(htmlfile);
+    var checks = loadChecks(checksfile).sort();
+    var out = {};
+    for(var ii in checks) {
+        var present = $(checks[ii]).length > 0;
+        out[checks[ii]] = present;
+    }
+    return out;
+};
+
+var check2HtmlFile = function(htmlfile, checksfile) {
+    $ = cheerio2HtmlFile(htmlfile);
     var checks = loadChecks(checksfile).sort();
     var out = {};
     for(var ii in checks) {
@@ -67,10 +99,26 @@ if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+        .option('-u, --url <url_file>', 'URL to index.html', clone(assertUrlExists)/*, URLFILE_DEFAULT*/)
         .parse(process.argv);
+
+if (program.url) {
+//    console.log("URL called\n");
+restler.get(program.url).on('complete', function(results) {
+//console.log(results);
+ var checkJson = check2HtmlFile(results, program.checks);
+    var outJson = JSON.stringify(checkJson, null, 4);
+    console.log(outJson);
+});
+
+
+
+} else {
     var checkJson = checkHtmlFile(program.file, program.checks);
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
+}
+
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
